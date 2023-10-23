@@ -11,7 +11,7 @@ import vazkii.botania.api.wiki.IWikiProvider;
 
 public class BotaniaHandler
 {
-
+/**
     public static void load()
     {
         BotaniaAPI.registerModWiki(Reference.MODID, new CampfireWikiProvider());
@@ -51,5 +51,5 @@ public class BotaniaHandler
         }
 
     }
-
+*/
 }

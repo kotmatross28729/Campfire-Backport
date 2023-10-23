@@ -342,7 +342,7 @@ public class NEISignalFireBlocksHandler extends TemplateRecipeHandler
     }
 
     @Override
-    public List<String> handleItemTooltip(GuiRecipe gui, ItemStack stack, List<String> tooltip, int recipe)
+    public List<String> handleItemTooltip(GuiRecipe<?> gui, ItemStack stack, List<String> tooltip, int recipe)
     {
         CachedSignalFireBlocksRecipe cachedSblock = (CachedSignalFireBlocksRecipe) this.arecipes.get(recipe % arecipes.size());
 

@@ -117,7 +117,7 @@ public abstract class NEIGenericRecipeHandler extends TemplateRecipeHandler
     public abstract void loadAllRecipes();
 
     @Override
-    public List<String> handleItemTooltip(GuiRecipe gui, ItemStack stack, List<String> tooltip, int recipe)
+    public List<String> handleItemTooltip(GuiRecipe<?> gui, ItemStack stack, List<String> tooltip, int recipe)
     {
         CachedGenericRecipe cachedGrecipe = (CachedGenericRecipe) this.arecipes.get(recipe % arecipes.size());
 
