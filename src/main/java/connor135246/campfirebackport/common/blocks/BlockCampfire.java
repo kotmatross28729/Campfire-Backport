@@ -12,6 +12,7 @@ import connor135246.campfirebackport.common.recipes.CampfireStateChanger;
 import connor135246.campfirebackport.common.tileentity.TileEntityCampfire;
 import connor135246.campfirebackport.config.CampfireBackportConfig;
 import connor135246.campfirebackport.util.EnumCampfireType;
+import connor135246.campfirebackport.util.ICampfire;
 import connor135246.campfirebackport.util.MiscUtil;
 import connor135246.campfirebackport.util.Reference;
 import cpw.mods.fml.common.eventhandler.Cancelable;
@@ -22,11 +23,14 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockContainer;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.renderer.texture.IIconRegister;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.EnumCreatureAttribute;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.inventory.Container;
@@ -34,18 +38,21 @@ import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.PotionEffect;
 import net.minecraft.stats.StatList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.IIcon;
 import net.minecraft.util.MathHelper;
+import net.minecraft.world.EnumDifficulty;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.event.ForgeEventFactory;
 
-public class BlockCampfire extends BlockContainer
+public class BlockCampfire extends BlockContainer implements ICampfire
 {
     protected static final Random RAND = new Random();
 
@@ -179,9 +186,35 @@ public class BlockCampfire extends BlockContainer
             {
                 igniteOrReigniteCampfire(null, world, x, y, z);
             }
-            else if (isLit() && entity instanceof EntityLivingBase && !entity.isImmuneToFire() && CampfireBackportConfig.damaging.matches(this))
+            else if (isLit() && entity instanceof EntityLivingBase && CampfireBackportConfig.damaging.matches(this))
             {
-                if (entity.attackEntityFrom(DamageSource.inFire, EnumCampfireType.isSoul(getTypeIndex()) ? 2.0F : 1.0F))
+                boolean damageDone = false;
+
+                switch (getTypeIndex())
+                {
+                default:
+                {
+                    if (!entity.isImmuneToFire() && entity.attackEntityFrom(DamageSource.inFire, EnumCampfireType.isSoulLike(getTypeIndex()) ? 2.0F : 1.0F))
+                        damageDone = true;
+                    break;
+                }
+                case EnumCampfireType.foxfireIndex:
+                {
+                    if (entity.isImmuneToFire() && entity.attackEntityFrom(DamageSource.inFire, 1.0F))
+                        damageDone = true;
+                    break;
+                }
+                case EnumCampfireType.shadowIndex:
+                {
+                    if (((EntityLivingBase) entity).getCreatureAttribute() != EnumCreatureAttribute.UNDEAD && entity.attackEntityFrom(DamageSource.wither, 3.0F))
+                        damageDone = true;
+                    int blindnessTimer = world.difficultySetting == EnumDifficulty.HARD ? 10 : (world.difficultySetting == EnumDifficulty.NORMAL ? 5 : 3);
+                    ((EntityLivingBase) entity).addPotionEffect(new PotionEffect(Potion.blindness.id, blindnessTimer * 20));
+                    break;
+                }
+                }
+
+                if (damageDone)
                     world.playSoundEffect(x + 0.5, y + 0.4375, z + 0.5, "random.fizz", 0.5F, 2.6F + (RAND.nextFloat() - RAND.nextFloat()) * 0.8F);
             }
         }
@@ -481,19 +514,12 @@ public class BlockCampfire extends BlockContainer
     {
         this.blockIcon = iconreg.registerIcon(Reference.MODID + ":" + "campfire_log");
 
-        if (EnumCampfireType.isRegular(getTypeIndex()))
-            this.fire = iconreg.registerIcon(Reference.MODID + ":" + "campfire_fire");
-        else
-            this.fire = iconreg.registerIcon(Reference.MODID + ":" + "soul_campfire_fire");
-    }
+        this.fire = iconreg.registerIcon(Reference.MODID + ":" + EnumCampfireType.iconPrefix(getTypeIndex()) + "campfire_fire");
 
-    /**
-     * The lit log icon is an {@link InterpolatedIcon}. It's registered from {@link connor135246.campfirebackport.util.CampfireBackportEventHandler#onTextureStitchPre}.
-     */
-    @SideOnly(Side.CLIENT)
-    public void setLitLogIcon(IIcon litLog)
-    {
-        this.litLog = litLog;
+        String litLogName = Reference.MODID + ":" + EnumCampfireType.iconPrefix(getTypeIndex()) + "campfire_log_lit";
+        this.litLog = new InterpolatedIcon(litLogName);
+        if (iconreg instanceof TextureMap)
+            ((TextureMap) iconreg).setTextureEntry(litLogName, (TextureAtlasSprite) litLog);
     }
 
     /**
@@ -510,10 +536,7 @@ public class BlockCampfire extends BlockContainer
     @Override
     public String getItemIconName()
     {
-        if (EnumCampfireType.isRegular(getTypeIndex()))
-            return Reference.MODID + ":" + "campfire_base";
-        else
-            return Reference.MODID + ":" + "soul_campfire_base";
+        return Reference.MODID + ":" + EnumCampfireType.iconPrefix(getTypeIndex()) + "campfire_base";
     }
 
     @SideOnly(Side.CLIENT)
@@ -670,11 +693,7 @@ public class BlockCampfire extends BlockContainer
         return lit;
     }
 
-    public String getType()
-    {
-        return EnumCampfireType.fromIndex(typeIndex);
-    }
-
+    @Override
     public int getTypeIndex()
     {
         return typeIndex;
