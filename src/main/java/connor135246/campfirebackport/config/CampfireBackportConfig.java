@@ -27,7 +27,6 @@ import connor135246.campfirebackport.util.StringParsers;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
-import net.minecraft.item.ItemFood;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.FurnaceRecipes;
 import net.minecraft.nbt.NBTTagCompound;
@@ -221,9 +220,13 @@ public class CampfireBackportConfig
                 StringParsers.translateComment("charcoal")).setRequiresMcRestart(true).getBoolean();
 
         // rename "Soul Soil Only (Netherlicious)" to "Soul Soil Only"
-        config.renameProperty(Configuration.CATEGORY_GENERAL, ConfigReference.soulSoilOnly_OLD, ConfigReference.soulSoilOnly);
-
-        soulSoilOnly = config.get(Configuration.CATEGORY_GENERAL, ConfigReference.soulSoilOnly, false,
+        boolean soulSoilOnlyDefault = false;
+        if (config.getCategory(Configuration.CATEGORY_GENERAL).containsKey(ConfigReference.soulSoilOnly_OLD))
+        {
+            soulSoilOnlyDefault = config.get(Configuration.CATEGORY_GENERAL, ConfigReference.soulSoilOnly_OLD, false).getBoolean();
+            config.getCategory(Configuration.CATEGORY_GENERAL).remove(ConfigReference.soulSoilOnly_OLD);
+        }
+        soulSoilOnly = config.get(Configuration.CATEGORY_GENERAL, ConfigReference.soulSoilOnly, soulSoilOnlyDefault,
                 StringParsers.translateComment("soul_soil")).setRequiresMcRestart(true).getBoolean();
 
         regenCampfires = enumFromConfig(ConfigReference.regenCampfires, ConfigReference.NEITHER, "regen");
@@ -382,6 +385,10 @@ public class CampfireBackportConfig
 
         clearInvalidOresNoCT();
 
+        // add crafttweaker recipes before auto recipes, so that auto recipe can check crafttweaker eclipsing
+        for (CampfireRecipe crecipe : CampfireRecipe.getCraftTweakerList())
+            CampfireRecipe.addToRecipeLists(crecipe);
+
         // autoRecipe & autoBlacklistStrings
         CampfireRecipe.getFurnaceList().clear();
 
@@ -426,9 +433,6 @@ public class CampfireBackportConfig
 
             addFurnaceRecipes();
         }
-
-        for (CampfireRecipe crecipe : CampfireRecipe.getCraftTweakerList())
-            CampfireRecipe.addToRecipeLists(crecipe);
 
         CampfireRecipe.sortRecipeLists();
 
@@ -546,40 +550,7 @@ public class CampfireBackportConfig
         for (BurnOutRule brule : BurnOutRule.getCraftTweakerRules())
             BurnOutRule.addToRules(brule);
 
-        // campfireDropsStrings
-        campfireDropsStacks[0] = ConfigReference.getDefaultRegDrop();
-        campfireDropsStacks[1] = ConfigReference.getDefaultSoulDrop();
-        // not yet controlled by campfireDropsStrings. if you want to edit the drop, subscribe to BlockEvent.HarvestDropsEvent.
-        campfireDropsStacks[2] = ConfigReference.getDefaultFoxfireDrop();
-        campfireDropsStacks[3] = ConfigReference.getDefaultShadowDrop();
-
-        ConfigReference.logInfo("parsing_drops");
-
-        for (int i = 0; i < campfireDropsStrings.length; ++i)
-        {
-            try
-            {
-                if (!campfireDropsStrings[i].isEmpty())
-                {
-                    Object[] output = StringParsers.parseItemOrOreOrToolOrClassWithNBTOrDataWithSize(campfireDropsStrings[i], false);
-                    if (output[0] == null)
-                        throw new Exception();
-
-                    ItemStack drop = new ItemStack((Item) output[0], (Integer) output[1], (Integer) output[2]);
-                    if (output[3] != null && !((NBTTagCompound) output[3]).hasNoTags())
-                    {
-                        ((NBTTagCompound) output[3]).removeTag(StringParsers.KEY_GCIDataType);
-                        drop.setTagCompound((NBTTagCompound) output[3]);
-                    }
-
-                    campfireDropsStacks[i] = drop;
-                }
-            }
-            catch (Exception excep)
-            {
-                ConfigReference.logError("invalid_drops", campfireDropsStrings[i]);
-            }
-        }
+        setCampfireDrops();
 
         ConfigReference.logInfo("done");
 
@@ -616,7 +587,8 @@ public class CampfireBackportConfig
 
     /**
      * Discovers furnace recipes that result in an ItemFood, and adds them to the campfire types that were specified by autoRecipe. <br>
-     * It's also accessed from {@link connor135246.campfirebackport.common.compat.crafttweaker.CampfireBackportCraftTweaking.PostReloadEventHandler}.
+     * It's also accessed from {@link connor135246.campfirebackport.common.compat.crafttweaker.CampfireBackportCraftTweaking.PostReloadEventHandler}. <br>
+     * CraftTweaker can change furnace recipes and auto blacklist ores, so it's gotta be re-parsed.
      */
     public static void addFurnaceRecipes()
     {
@@ -630,7 +602,10 @@ public class CampfireBackportConfig
             ItemStack inputstack = (ItemStack) inputsit.next();
             ItemStack resultstack = (ItemStack) resultsit.next();
 
-            if (resultstack.getItem() instanceof ItemFood)
+            if (inputstack == null || resultstack == null)
+                continue iteratorLoop;
+
+            if (CampfireBackportCompat.allowAutoRecipe(inputstack, resultstack))
             {
                 if (!autoBlacklistStacks.isEmpty())
                 {
@@ -650,27 +625,50 @@ public class CampfireBackportConfig
                     }
                 }
 
-                CampfireRecipe furnaceCrecipe = CampfireRecipe.createAutoDiscoveryRecipe(inputstack, resultstack, autoRecipe);
-                if (furnaceCrecipe != null && furnaceCrecipe.getInputs().length > 0 && furnaceCrecipe.getInputs()[0] != null && furnaceCrecipe.hasOutputs())
+                CampfireRecipe.addAutoDiscoveryRecipe(inputstack, resultstack, autoRecipe);
+            }
+        }
+    }
+
+    /**
+     * Sets campfire drops to default and then parses config drops. <br>
+     * It's also accessed from {@link connor135246.campfirebackport.common.compat.crafttweaker.CampfireBackportCraftTweaking.PostReloadEventHandler}. <br>
+     * CraftTweaker can change ores and the default soul drop cares about ores, so it's gotta be re-parsed.
+     */
+    public static void setCampfireDrops()
+    {
+        // campfireDropsStrings
+        campfireDropsStacks[0] = ConfigReference.getDefaultRegDrop();
+        campfireDropsStacks[1] = ConfigReference.getDefaultSoulDrop(); // cares about ores!
+        // not yet controlled by campfireDropsStrings. if you want to edit the drop, subscribe to BlockEvent.HarvestDropsEvent.
+        campfireDropsStacks[2] = ConfigReference.getDefaultFoxfireDrop();
+        campfireDropsStacks[3] = ConfigReference.getDefaultShadowDrop();
+
+        ConfigReference.logInfo("parsing_drops");
+
+        for (int i = 0; i < campfireDropsStrings.length; ++i)
+        {
+            try
+            {
+                if (!campfireDropsStrings[i].isEmpty())
                 {
-                    boolean addIt = true;
-                    for (CampfireRecipe masterCrecipe : CampfireRecipe.getMasterList())
+                    Object[] output = StringParsers.parseItemOrOreOrToolOrClassWithNBTOrDataWithSize(campfireDropsStrings[i], false);
+                    if (output[0] == null)
+                        throw new Exception();
+
+                    ItemStack drop = new ItemStack((Item) output[0], (Integer) output[1], (Integer) output[2]);
+                    if (output[3] != null && !((NBTTagCompound) output[3]).hasNoTags())
                     {
-                        if (CampfireRecipe.doStackRecipesMatch(furnaceCrecipe, masterCrecipe))
-                        {
-                            addIt = false;
-                            break;
-                        }
+                        ((NBTTagCompound) output[3]).removeTag(StringParsers.KEY_GCIDataType);
+                        drop.setTagCompound((NBTTagCompound) output[3]);
                     }
-                    if (addIt)
-                    {
-                        for (CampfireRecipe splitCrecipe : CampfireRecipe.splitRecipeIfNecessary(furnaceCrecipe, null))
-                        {
-                            CampfireRecipe.getFurnaceList().add(splitCrecipe);
-                            CampfireRecipe.addToRecipeLists(splitCrecipe);
-                        }
-                    }
+
+                    campfireDropsStacks[i] = drop;
                 }
+            }
+            catch (Exception excep)
+            {
+                ConfigReference.logError("invalid_drops", campfireDropsStrings[i]);
             }
         }
     }

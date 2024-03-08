@@ -50,6 +50,8 @@ public class CommandCampfireBackport implements ICommand
     @Override
     public int compareTo(Object o)
     {
+        if (o instanceof ICommand)
+            return this.getCommandName().compareTo(((ICommand) o).getCommandName());
         return 0;
     }
 
@@ -234,6 +236,8 @@ public class CommandCampfireBackport implements ICommand
                         blockEntityTag.removeTag("id");
                         blockEntityTag.removeTag(TileEntityCampfire.KEY_SignalFire);
                         stack.setTagInfo(TileEntityCampfire.KEY_BlockEntityTag, blockEntityTag);
+                        if (blockEntityTag.hasKey(TileEntityCampfire.KEY_CustomName))
+                            stack.setStackDisplayName(blockEntityTag.getString(TileEntityCampfire.KEY_CustomName));
 
                         TileEntityCampfire.popItem(stack, world, x, y, z);
 

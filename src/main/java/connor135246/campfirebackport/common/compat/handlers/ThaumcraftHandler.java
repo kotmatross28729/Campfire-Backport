@@ -1,10 +1,13 @@
 package connor135246.campfirebackport.common.compat.handlers;
 
+import java.util.function.Consumer;
+
 import connor135246.campfirebackport.common.blocks.BlockCampfire;
 import connor135246.campfirebackport.common.blocks.CampfireBackportBlocks;
 import connor135246.campfirebackport.common.tileentity.TileEntityCampfire;
 import connor135246.campfirebackport.config.CampfireBackportConfig;
 import connor135246.campfirebackport.util.Reference;
+import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -16,15 +19,18 @@ import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
 import thaumcraft.api.wands.IWandTriggerManager;
 import thaumcraft.api.wands.WandTriggerRegistry;
+import thaumcraft.common.entities.projectile.EntityPrimalArrow;
 
 public class ThaumcraftHandler
 {
 
     public static void load()
     {
-        CampfireBackportBlocks.LIST_OF_CAMPFIRES.forEach(cblock -> {
+        Consumer<? super Block> register = cblock -> {
             WandTriggerRegistry.registerWandBlockTrigger(CampfireBackportWandTriggerManager.INSTANCE, 0, cblock, -1, Reference.MODID);
-        });
+        };
+        CampfireBackportBlocks.LIT_CAMPFIRES.forEach(register);
+        CampfireBackportBlocks.UNLIT_CAMPFIRES.forEach(register);
 
         ThaumcraftApi.registerObjectTag(new ItemStack(CampfireBackportBlocks.campfire, 1, OreDictionary.WILDCARD_VALUE),
                 new AspectList().add(Aspect.FIRE, 2).add(Aspect.TREE, 9));
@@ -43,6 +49,9 @@ public class ThaumcraftHandler
                 new AspectList().add(Aspect.FIRE, 2).add(Aspect.TREE, 9).add(Aspect.DARKNESS, 1));
         ThaumcraftApi.registerObjectTag(new ItemStack(CampfireBackportBlocks.shadow_campfire_base, 1, OreDictionary.WILDCARD_VALUE),
                 new AspectList().add(Aspect.FIRE, 2).add(Aspect.TREE, 9).add(Aspect.DARKNESS, 1));
+
+        // primal arrow extinguishing/igniting compat
+        BlockCampfire.primalArrowClass = EntityPrimalArrow.class;
     }
 
     public static class CampfireBackportWandTriggerManager implements IWandTriggerManager

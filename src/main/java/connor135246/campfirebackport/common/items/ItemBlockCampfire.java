@@ -137,7 +137,6 @@ public class ItemBlockCampfire extends ItemBlock implements ICampfire
         int particles = 0;
 
         boolean copyTags = false;
-        boolean hasItems = false;
 
         NBTTagCompound droptag = (NBTTagCompound) stack.getTagCompound().copy();
         NBTTagCompound droptiletag = droptag.getCompoundTag(TileEntityCampfire.KEY_BlockEntityTag);
@@ -262,11 +261,13 @@ public class ItemBlockCampfire extends ItemBlock implements ICampfire
         this.overlay = iconreg.registerIcon(Reference.MODID + ":" + EnumCampfireType.iconPrefix(getTypeIndex()) + "overlay");
     }
 
+    @Override
     public boolean isLit()
     {
         return this.lit;
     }
 
+    @Override
     public int getTypeIndex()
     {
         return this.typeIndex;

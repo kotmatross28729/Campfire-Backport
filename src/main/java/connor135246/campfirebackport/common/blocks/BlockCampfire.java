@@ -5,7 +5,6 @@ import java.util.Random;
 
 import javax.annotation.Nullable;
 
-import connor135246.campfirebackport.CampfireBackport;
 import connor135246.campfirebackport.client.rendering.InterpolatedIcon;
 import connor135246.campfirebackport.common.compat.CampfireBackportCompat;
 import connor135246.campfirebackport.common.recipes.CampfireStateChanger;
@@ -28,9 +27,7 @@ import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.EnumCreatureAttribute;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.inventory.Container;
@@ -38,14 +35,10 @@ import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.potion.Potion;
-import net.minecraft.potion.PotionEffect;
 import net.minecraft.stats.StatList;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.DamageSource;
 import net.minecraft.util.IIcon;
 import net.minecraft.util.MathHelper;
-import net.minecraft.world.EnumDifficulty;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
@@ -156,7 +149,7 @@ public class BlockCampfire extends BlockContainer implements ICampfire
     }
 
     /** if thaumcraft is installed, this will become EntityPrimalArrow.class. otherwise, it's just null. */
-    private static Class primalArrowClass = CampfireBackport.class;
+    public static Class primalArrowClass = null;
 
     @Override
     public void onEntityCollidedWithBlock(World world, int x, int y, int z, Entity entity)
@@ -167,8 +160,6 @@ public class BlockCampfire extends BlockContainer implements ICampfire
         {
             if (entity instanceof EntityArrow)
             {
-                if (primalArrowClass == CampfireBackport.class)
-                    primalArrowClass = (Class) EntityList.stringToClassMapping.get("Thaumcraft.PrimalArrow");
                 if (primalArrowClass != null && primalArrowClass.isInstance(entity))
                 {
                     thaumcraft.common.entities.projectile.EntityPrimalArrow primalarrow = (thaumcraft.common.entities.projectile.EntityPrimalArrow) entity;
@@ -182,40 +173,15 @@ public class BlockCampfire extends BlockContainer implements ICampfire
                 }
             }
 
+            if (isLit() && entity instanceof EntityLivingBase && CampfireBackportConfig.damaging.matches(this))
+            {
+                if (EnumCampfireType.doDamage(getTypeIndex(), (EntityLivingBase) entity, world.difficultySetting))
+                    world.playSoundEffect(x + 0.5, y + 0.4375, z + 0.5, "random.fizz", 0.5F, 2.6F + (RAND.nextFloat() - RAND.nextFloat()) * 0.8F);
+            }
+
             if (entity.isBurning())
             {
                 igniteOrReigniteCampfire(null, world, x, y, z);
-            }
-            else if (isLit() && entity instanceof EntityLivingBase && CampfireBackportConfig.damaging.matches(this))
-            {
-                boolean damageDone = false;
-
-                switch (getTypeIndex())
-                {
-                default:
-                {
-                    if (!entity.isImmuneToFire() && entity.attackEntityFrom(DamageSource.inFire, EnumCampfireType.isSoulLike(getTypeIndex()) ? 2.0F : 1.0F))
-                        damageDone = true;
-                    break;
-                }
-                case EnumCampfireType.foxfireIndex:
-                {
-                    if (entity.isImmuneToFire() && entity.attackEntityFrom(DamageSource.inFire, 1.0F))
-                        damageDone = true;
-                    break;
-                }
-                case EnumCampfireType.shadowIndex:
-                {
-                    if (((EntityLivingBase) entity).getCreatureAttribute() != EnumCreatureAttribute.UNDEAD && entity.attackEntityFrom(DamageSource.wither, 3.0F))
-                        damageDone = true;
-                    int blindnessTimer = world.difficultySetting == EnumDifficulty.HARD ? 10 : (world.difficultySetting == EnumDifficulty.NORMAL ? 5 : 3);
-                    ((EntityLivingBase) entity).addPotionEffect(new PotionEffect(Potion.blindness.id, blindnessTimer * 20));
-                    break;
-                }
-                }
-
-                if (damageDone)
-                    world.playSoundEffect(x + 0.5, y + 0.4375, z + 0.5, "random.fizz", 0.5F, 2.6F + (RAND.nextFloat() - RAND.nextFloat()) * 0.8F);
             }
         }
     }
@@ -351,30 +317,30 @@ public class BlockCampfire extends BlockContainer implements ICampfire
         {
             stateChanging = true;
 
-            Block newBlock = CampfireBackportBlocks.getBlockFromLitAndType(mode != 0, ((BlockCampfire) oldBlock).getTypeIndex());
-
             if (mode != 2)
+            {
+                Block newBlock = CampfireBackportBlocks.getBlockFromLitAndType(mode != 0, ((BlockCampfire) oldBlock).getTypeIndex());
                 world.setBlock(x, y, z, newBlock, meta, 3);
+            }
 
             if (!world.isRemote)
             {
-                switch (mode)
+                if (mode == 1 || mode == 2)
                 {
-                case 1:
-                    ctile.resetRegenWaitTimer();
-                case 2: // fallthrough
-                {
+                    if (mode == 1)
+                        ctile.resetRegenWaitTimer();
                     ctile.checkSignal();
                     ctile.resetLife(true);
+                    ctile.markForClient();
                     world.playSoundEffect(x + 0.5, y + 0.4375, z + 0.5, "fire.ignite", 1.0F, RAND.nextFloat() * 0.4F + 0.8F);
-                    break;
                 }
-                default:
-                {
+                else
                     ctile.playFizzAndAddSmokeServerSide(20, 0.45);
-                    break;
-                }
-                }
+            }
+            else
+            {
+                if (mode == 1 || mode == 2)
+                    ctile.setClientReigntion();
             }
 
             ctile.markDirty();
@@ -688,6 +654,7 @@ public class BlockCampfire extends BlockContainer implements ICampfire
 
     // Getters
 
+    @Override
     public boolean isLit()
     {
         return lit;

@@ -28,6 +28,7 @@ import net.minecraft.util.ChunkCoordinates;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.StatCollector;
 import net.minecraftforge.client.event.TextureStitchEvent;
+import net.minecraftforge.event.FuelBurnTimeEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 
 public class CampfireBackportEventHandler
@@ -42,7 +43,9 @@ public class CampfireBackportEventHandler
     {
         if (event.map.getTextureType() == 1)
         {
-            for (Block block : CampfireBackportBlocks.LIST_OF_CAMPFIRES)
+            for (Block block : CampfireBackportBlocks.LIT_CAMPFIRES)
+                ((ItemBlockCampfire) Item.getItemFromBlock(block)).registerIconsEvent(event.map);
+            for (Block block : CampfireBackportBlocks.UNLIT_CAMPFIRES)
                 ((ItemBlockCampfire) Item.getItemFromBlock(block)).registerIconsEvent(event.map);
         }
     }
@@ -111,7 +114,8 @@ public class CampfireBackportEventHandler
         {
             Block block = event.entityPlayer.worldObj.getBlock(event.x, event.y, event.z);
 
-            if (CampfireBackportBlocks.isLitCampfire(block) && CampfireBackportConfig.spawnpointable.matches((BlockCampfire) block))
+            // TODO it doesn't really match the theme of the netherlicious campfires to be spawnpointable, so i exclude them here. in the future this will be properly toggleable.
+            if (CampfireBackportBlocks.isLitCampfire(block) && CampfireBackportConfig.spawnpointable.matches((BlockCampfire) block) && !EnumCampfireType.isNetherlicious(((BlockCampfire) block).getTypeIndex()))
             {
                 event.entityPlayer.addChatComponentMessage(new ChatComponentTranslation(Reference.MODID + ".set_spawn"));
                 event.entityPlayer.setSpawnChunk(new ChunkCoordinates(event.x, event.y, event.z), false);
@@ -142,6 +146,19 @@ public class CampfireBackportEventHandler
                         ctile.burnOutOrToNothing();
                 }
             }
+        }
+    }
+
+    /**
+     * Prevent campfires from being used as furnace fuel. (By default they're given 1.5 items since they have a Material of wood.)
+     */
+    @SubscribeEvent
+    public void onFuelBurnTime(FuelBurnTimeEvent event)
+    {
+        if (event.fuel.getItem() instanceof ItemBlockCampfire && event.getResult() == Event.Result.DEFAULT)
+        {
+            event.burnTime = 0;
+            event.setResult(Event.Result.DENY);
         }
     }
 
