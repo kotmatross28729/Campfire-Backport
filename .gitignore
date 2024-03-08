@@ -13,3 +13,7 @@ README.txt
 detailedRes.txt
 runClient.launch
 runServer.launch
+.idea/
+*.iml
+*.ipr
+*.iws
