@@ -1,20 +1,21 @@
-[
-    {
-        "modid": "campfirebackport",
-        "name": "Campfire Backport",
-        "description": "adds campfires & soul campfires from modern versions of minecraft, with way too many config options",
-        "version": "${version}",
-        "mcversion": "${mcversion}",
-        "url": "https://github.com/connor135246/Campfire-Backport",
-        "updateUrl": "",
-        "authorList": [
-            "connor135246"
-        ],
-        "credits": "so many githubs and modding tutorials, and also mcg",
-        "logoFile": "smallframedbanner.png",
-        "screenshots": [
-        ],
-        "dependencies": [
-        ]
-    }
-]
+{
+  "modListVersion": 2,
+  "modList": [{
+    "modid": "${modId}",
+    "name": "${modName}",
+    "description": "Adds campfires & soul campfires from modern versions of minecraft, with way too many config options",
+    "version": "${modVersion}",
+    "mcversion": "${minecraftVersion}",
+    "url": "https://github.com/connor135246/Campfire-Backport",
+    "updateUrl": "",
+    "authorList": ["connor135246"],
+    "credits": "so many githubs and modding tutorials, and also mcg",
+    "logoFile": "smallframedbanner.png",
+    "screenshots": [],
+    "parent": "",
+    "requiredMods": [],
+    "dependencies": [],
+    "dependants": [],
+    "useDependencyInformation": false
+  }]
+}
