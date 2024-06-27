@@ -150,6 +150,7 @@ public class ConfigReference
             recipeListInheritance = "Custom Recipe Inheritance",
             defaultCookingTimes = "Default Cooking Times",
             spawnpointable = "Set Respawn Point",
+            spawnpointableAltTriggerObj = "Set Respawn Point - Alternate Activation",
             burnOutOnRespawn = "Burn Out on Respawn",
             automation = "Automation",
             startUnlit = "Unlit by Default",
@@ -158,7 +159,7 @@ public class ConfigReference
             putOutByRain = "Put Out by Rain",
             worksUnderwater = "Works Underwater",
             damaging = "Damage",
-            visCosts = "Vis Costs",
+            visCostsObj = "Vis Costs",
             burnOutTimer = "Burn Out Timers",
             burnOutRules = "Burn Out Biome/Dimension Timers",
             signalFiresBurnOut = "Burn Out (Signal Fires)",
@@ -193,8 +194,9 @@ public class ConfigReference
         configOrder.add(worksUnderwater);
         configOrder.add(damaging);
         configOrder.add(spawnpointable);
+        configOrder.add(spawnpointableAltTriggerObj);
         configOrder.add(burnOutOnRespawn);
-        configOrder.add(visCosts);
+        configOrder.add(visCostsObj);
         configOrder.add(signalFireStrings);
         configOrder.add(signalFiresBurnOut);
         configOrder.add(colourfulSmoke);
